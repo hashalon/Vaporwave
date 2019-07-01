@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://menu/GameMenu.gd" type="Script" id=1]
+
+[node name="ingame_menu" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource( 1 )
+
+[node name="player_list" type="Label" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_right = -256.0
+text = "Empty"
+
+[node name="spawn_btn" type="Button" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 256.0
+margin_top = 256.0
+margin_right = -176.0
+margin_bottom = -216.0
+text = "spawn"
+
+[node name="leave_btn" type="Button" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 256.0
+margin_top = 300.0
+margin_right = -176.0
+margin_bottom = -172.0
+text = "leave"
