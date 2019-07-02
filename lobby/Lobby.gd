@@ -30,8 +30,16 @@ func _ready()->void:
 
 # called on peer when a new client connected
 func _on_player_connected(id:int)->void:
+	var own_id:int = get_tree().get_network_unique_id()
 	# send this peer id and name to the newly connected client
-	rpc_id(id, "set_player_name", get_tree().get_network_unique_id(), self.own_name)
+	rpc_id(id, "set_player_name", own_id, self.own_name)
+	
+	# if we have a player already present in the game,
+	# ask the new client to spawn it
+	if global.has_node(str(own_id)):
+		var player:Player = global.get_node(str(own_id))
+		global.rpc_id(id, "spawn", own_id, player.room, player.model, "")
+
 
 # rpc call of peers on newly connected client
 remote func set_player_name(id:int, player_name:String)->void:
@@ -40,6 +48,11 @@ remote func set_player_name(id:int, player_name:String)->void:
 # called on peer when the client disconnected
 func _on_player_disconnected(id:int)->void:
 	self.player_names.erase(id)
+	
+	# if the client had a player in the game, destroy it
+	if global.has_node(str(id)):
+		var player:Player = global.get_node(str(id))
+		player.queue_free()
 
 
 ### CONTROLS ###
@@ -83,14 +96,16 @@ func join_game(ip:String)->int:
 # leave a game
 func leave_game()->void:
 	var tree:SceneTree=get_tree()
-	if tree.has_network_peer():
-		tree.network_peer.close_connection()
 	
 	# reset everything
-	tree.network_peer = null
 	self.player_names = {}
-	for player in get_children():
+	for player in global.get_children():
 		player.queue_free()
+	
+	# then close the connection
+	if tree.has_network_peer():
+		tree.network_peer.close_connection()
+	tree.network_peer = null
 	
 	# return to the main menu
 	tree.change_scene_to(global.main_menu)

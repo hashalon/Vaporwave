@@ -21,9 +21,25 @@ transform = Transform( 26.4428, 0, 0, 0, 1, 0, 0, 0, 22.1195, 0, 0, 0 )
 mesh = SubResource( 3 )
 material/0 = null
 
+[node name="StaticBody2" type="StaticBody" parent="."]
+transform = Transform( 1, 0, 0, 0, -0.240754, -0.970586, 0, 0.970586, -0.240754, 0, 10.1746, -18.7873 )
+
+[node name="CollisionShape" type="CollisionShape" parent="StaticBody2"]
+shape = SubResource( 2 )
+
+[node name="MeshInstance" type="MeshInstance" parent="StaticBody2"]
+transform = Transform( 26.4428, 0, 0, 0, 1, 0, 0, 0, 22.1195, 0, 0, 0 )
+mesh = SubResource( 3 )
+material/0 = null
+
 [node name="OmniLight" type="OmniLight" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.1262, 0 )
 omni_range = 23.8561
 
 [node name="Camera" type="Camera" parent="."]
 transform = Transform( 0.985738, -0.113411, 0.12433, 0, 0.738802, 0.673922, -0.168285, -0.664311, 0.728266, 4.74679, 8.19098, 18.181 )
+
+[node name="spawns" type="Node" parent="."]
+
+[node name="spawn1" type="Spatial" parent="spawns"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -6.56905, 5.6303, 1.74895 )

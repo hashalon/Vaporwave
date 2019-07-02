@@ -11,18 +11,18 @@ func _ready():
 
 
 func _on_spawn()->void:
-	var id:int = get_tree().get_network_unique_id()
-	global.rpc("spawn", id, "plain", "bear")
+	var tree:SceneTree = get_tree()
 	
-	# find the player we just created
-#	var player:Player = global.find_node(str(id))
-#	if player.is_network_master():
-#		self.add_child(player)
-#	player.set_room("plain")
+	# get room and model to use
+	var room :String = "plain"
+	var model:String = "bear"
+	var point:String = "/root/room/spawns/spawn1"
 	
-	#if not global.rooms.has(room):
-	#	print("Room '" + room + "' does not exists, cannot load level."); return
+	var id:int = tree.get_network_unique_id()
+	global.rpc("spawn", id, room, model, point)
+	global.load_room(room)
 	
+
 
 # when a player arrive or leave
 func _on_update_list(id:int)->void:

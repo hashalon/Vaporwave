@@ -11,6 +11,8 @@ const player_template:PackedScene = preload("res://player/player.tscn")
 var rooms :Dictionary
 var models:Dictionary
 
+# currently loaded room
+var current_room:String = ""
 
 func _ready():
 	var path_rooms  = "res://world/rooms/"
@@ -20,23 +22,43 @@ func _ready():
 	self.models = prepare_scenes(path_models, list_files(path_models))
 
 
+### MANAGE ROOM ###
+
+# load the new room and activate relevent players
+func load_room(room:String)->void:
+	if not global.rooms.has(room):
+		print("invalid room: " + room); return
+	
+	# if the room is already loaded, nothing to do...
+	if self.current_room == room: return
+	
+	# load new scene and filter players that are in it
+	get_tree().change_scene_to(global.rooms[room])
+	self.current_room = room
+	for player in get_children():
+		player.set_active(player.room == self.current_room)
+
+
 ### SPAWN ###
 
 # generate a new character for the given player in the specified room
 # the player will always appear at (0,0,0)
-remotesync func spawn(id:int, room:String, model:String)->void:
+remotesync func spawn(id:int, room:String, model:String, point:String)->void:
 	if not self.models.has(model):
 		print("Model '" + model + "' does not exists, will pick a random model.")
 		model = self.models.keys()[0]
 	
 	# prepare a new player
 	var player:Player = self.player_template.instance() # base
-	var mod:PlayerModel = self.models[model].instance() # model
+	var md:PlayerModel = self.models[model].instance() # model
 	player.name = str(id) # set name as id
-	player.add_child(mod)
-	self.add_child(player)
+	player.room  = room
+	player.model = model
+	player.point = point
+	player.add_child(md)
 	player.set_network_master(id, true) # set network master as id
-	player.set_room(room)
+	self.add_child(player)
+	player.change_room(room)
 
 
 ### LOAD RESOURCES ###

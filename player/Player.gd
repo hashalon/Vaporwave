@@ -3,15 +3,14 @@ class_name Player
 
 signal jump
 signal action
-signal change_room
 
 # parameters of players
 export(int  , 1  , 10) var health         :int  = 3  #(pt)
-export(float, 0.1, 10) var speed_walk     :float= 1  #(m/s)
-export(float, 0.1, 10) var speed_run      :float= 2  #(m/s)
-export(float, 0.1, 50) var jump_force     :float= 5  #(m/s2)
-export(float, 0.1, 80) var gravity_force  :float=30  #(m/s2)
-export(float, 0.1, 80) var gravity_jump   :float=10  #(m/s2)
+export(float, 0.1, 50) var speed_walk     :float=10  #(m/s)
+export(float, 0.1, 50) var speed_run      :float=20  #(m/s)
+export(float, 0.1, 50) var jump_force     :float=20  #(m/s2)
+export(float, 0.1,100) var gravity_force  :float=60  #(m/s2)
+export(float, 0.1,100) var gravity_jump   :float=30  #(m/s2)
 export(float, 1  ,200) var max_speed      :float=20  #(m/s)
 export(float, 0  , 90) var slope_max_angle:float=45  #(deg)
 export(float, 0  ,  1) var move_lerp      :float=0.1 #(%)
@@ -20,13 +19,14 @@ export(float, 0  ,  1) var network_lerp   :float=0.1 #(%)
 
 # called each time the player enter the scene tree
 func _ready()->void:
-	# setup the player based on whether it is local or remote
+	# local instance controls the player
 	if is_network_master():
 		var net_timer:Timer = $network_timer
 		var err:int = net_timer.connect("timeout", self, "_send_unreliable")
 		net_timer.start()
-	else:
+	else: # player is puppet (assume it is in an other room)
 		set_process_unhandled_input(false)
+		set_active(false)
 
 
 # control the player character
@@ -36,12 +36,19 @@ func _process(delta:float)->void:
 			rpc("receive_reliable_inputs", _reliable_inputs)
 			_reliable_inputs  = 0x0
 			_to_send_reliable = false
+		
+		# require to place the player at the specified location in the scene
+		if self.point != "":
+			var pt:Spatial = get_node(self.point)
+			if pt != null:
+				self.global_transform.origin = pt.global_transform.origin
+				self.point = ""
 	
 	else: # puppet
 		# slowly interpolate over time
 		self.global_transform.origin = self.global_transform.origin.linear_interpolate(
 			_target_position, self.network_lerp)
-	
+
 	# apply motion based on inputs received from the network
 	move(delta)
 
@@ -84,62 +91,7 @@ func move(delta:float)->void:
 	
 	# move the character
 	var velocity:Vector3 = _velocity_horizontal + Vector3(0, _velocity_vertical, 0)
-	move_and_slide(velocity, ground.normal, false, 4, self.slope_max_angle, true)
-	
-	# TODO: the player moves by itself for an obscure reason
-
-
-### NETWORKING ###
-
-# room in which the player is located
-var current_room:String=""
-onready var _target_position:Vector3=self.global_transform.origin
-
-# send player data in a single rpc call
-func _send_unreliable()->void:
-	rpc_unreliable("receive_unreliable", _get_unreliable_inputs(), 
-		self.global_transform.origin, _velocity_horizontal, _velocity_vertical)
-
-# receive player data
-puppet func receive_unreliable(i:int, pos:Vector3, vel_h:Vector3, vel_v:float)->void:
-	_set_unreliable_inputs(i)
-	_target_position     = pos
-	_velocity_horizontal = vel_h
-	_velocity_vertical   = vel_v
-
-# allow the player to change of room
-remotesync func set_room(room:String)->void:
-	var tree:SceneTree = get_tree()
-	
-	if is_network_master():
-		# try to load a new scene
-		var err:int = tree.change_scene_to(global.rooms[room])
-		if err == OK:
-			self.current_room = room
-			# iterate through the list of players and make them visible/invisible
-			for player in global.get_children():
-				if self == player: continue
-				if room == player.current_room: global.add_child(player)
-				else: global.remove_child(player)
-	else:
-		self.current_room = room
-		var nm:String = tree.get_current_scene().filename.get_file()
-		nm = nm.left(nm.length() - 5)
-		
-		# if player is present in current room, add it to the tree
-		if room == nm: global.add_child(self)
-		else: global.remove_child(self)
-	
-	# the player has changed of room
-	emit_signal("change_room", room)
-
-
-puppet func receive_reliable_inputs(i:int)->void:
-	if i&0x01!=0:
-		emit_signal("jump")
-		_jump_timer.start()
-	if i&0x02!=0:
-		emit_signal("action")
+	move_and_slide(velocity, ground.normal, false, 4, _slope_angle, true)
 
 
 ### PHYSICS ###
@@ -162,6 +114,54 @@ func get_ground_normal()->Plane:
 	return Plane(normal, 0)
 
 
+### NETWORKING ###
+
+var model:String="" # model for this player to load on peers
+onready var _target_position:Vector3=self.global_transform.origin
+
+# send player data in a single rpc call
+func _send_unreliable()->void:
+	rpc_unreliable("receive_unreliable", _get_unreliable_inputs(), 
+		self.global_transform.origin, _velocity_horizontal, _velocity_vertical)
+
+# receive player data
+puppet func receive_unreliable(i:int, pos:Vector3, vel_h:Vector3, vel_v:float)->void:
+	_set_unreliable_inputs(i)
+	_target_position     = pos
+	_velocity_horizontal = vel_h
+	_velocity_vertical   = vel_v
+	
+	# if the player is not visible, move it directly to its target location
+	if self.room != global.current_room:
+		self.global_transform.origin = pos
+
+puppet func receive_reliable_inputs(i:int)->void:
+	if i&0x01!=0:
+		emit_signal("jump")
+		_jump_timer.start()
+	if i&0x02!=0:
+		emit_signal("action")
+
+
+### ROOMS ###
+
+var room :String="" # room in which the player is located
+var point:String="" # point where to place our own player when changing rooms
+
+# allow a puppet player to change of room
+puppet func change_room(rm:String)->void:
+	self.room = rm
+	set_active(self.room == global.current_room)
+
+# allow to enable or disable the player (when changing room)
+# (doesn't work for our own player)
+func set_active(active:bool)->void:
+	if is_network_master(): return
+	self.visible = active
+	set_process(active)
+	# TODO: change body layer/mask
+
+
 ### INPUTS ###
 
 # store state of keys
@@ -180,32 +180,26 @@ var _reliable_inputs:int=0x0
 var _to_send_reliable:bool=false
 
 # handle key presses
-func _unhandled_input(event:InputEvent)->void:
-	if event.is_pressed():
-		match event.as_text():
-			"move_up"   : _move_up   =true
-			"move_down" : _move_down =true
-			"move_left" : _move_left =true
-			"move_right": _move_right=true
-			"jump":
-				_hold_jump = true
-				emit_signal("jump")
-				_reliable_inputs |= 0x1
-				_to_send_reliable = true
-				_jump_timer.start()
-			"action":
-				_hold_action = true
-				emit_signal("action")
-				_reliable_inputs |= 0x2
-				_to_send_reliable = true
-	else:
-		match event.as_text():
-			"move_up"   : _move_up    =false
-			"move_down" : _move_down  =false
-			"move_left" : _move_left  =false
-			"move_right": _move_right =false
-			"jump"      : _hold_jump  =false
-			"action"    : _hold_action=false
+func _unhandled_input(e:InputEvent)->void:
+	if e.is_pressed() and not e.is_echo(): # start pressing action
+		if   e.is_action("move_up"   ): _move_up   =true
+		elif e.is_action("move_down" ): _move_down =true
+		elif e.is_action("move_left" ): _move_left =true
+		elif e.is_action("move_right"): _move_right=true
+		elif e.is_action("jump"):
+			_reliable_inputs |= 0x1; _hold_jump = true
+			_to_send_reliable = true; emit_signal("jump")
+			_jump_timer.start()
+		elif e.is_action("action"):
+			_reliable_inputs |= 0x2; _hold_action = true
+			_to_send_reliable = true; emit_signal("action")
+	elif not e.is_pressed(): # just released action
+		if   e.is_action("move_up"   ): _move_up    =false
+		elif e.is_action("move_down" ): _move_down  =false
+		elif e.is_action("move_left" ): _move_left  =false
+		elif e.is_action("move_right"): _move_right =false
+		elif e.is_action("jump"      ): _hold_jump  =false
+		elif e.is_action("action"    ): _hold_action=false
 
 # get how the character wants to move
 func get_move(ground:Plane)->Vector3:
