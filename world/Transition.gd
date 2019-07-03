@@ -15,6 +15,6 @@ func _ready()->void:
 func _on_body_entered(body:Node)->void:
 	if body.is_network_master() and body is Player:
 		# load new scene and filter players that should be visible
-		body.rpc("change_room", self.target_point)
 		global.load_room(self.target_room)
+		body.rpc("change_room", self.target_room)
 		body.point = self.target_point

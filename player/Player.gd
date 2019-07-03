@@ -15,6 +15,7 @@ export(float, 1  ,200) var max_speed      :float=20  #(m/s)
 export(float, 0  , 90) var slope_max_angle:float=45  #(deg)
 export(float, 0  ,  1) var move_lerp      :float=0.1 #(%)
 export(float, 0  ,  1) var network_lerp   :float=0.1 #(%)
+export(float, 1  ,100) var pop_threshold  :float=10  #(m)
 
 
 # called each time the player enter the scene tree
@@ -45,9 +46,13 @@ func _process(delta:float)->void:
 				self.point = ""
 	
 	else: # puppet
-		# slowly interpolate over time
-		self.global_transform.origin = self.global_transform.origin.linear_interpolate(
-			_target_position, self.network_lerp)
+		# if the object is too far, pop it to its target position
+		if _target_position.distance_squared_to(self.global_transform.origin) > self.pop_threshold * self.pop_threshold:
+			self.global_transform.origin = _target_position
+		
+		else: # slowly interpolate over time
+			self.global_transform.origin = self.global_transform.origin.linear_interpolate(
+				_target_position, self.network_lerp)
 
 	# apply motion based on inputs received from the network
 	move(delta)

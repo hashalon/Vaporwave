@@ -1,6 +1,66 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=6 format=2]
+
+[ext_resource path="res://world/Transition.gd" type="Script" id=1]
 
 [sub_resource type="Environment" id=1]
 
+[sub_resource type="BoxShape" id=2]
+extents = Vector3( 25.6402, 1, 21.5588 )
+
+[sub_resource type="CubeMesh" id=3]
+
+[sub_resource type="SphereShape" id=4]
+radius = 5.08697
+
 [node name="room" type="WorldEnvironment"]
 environment = SubResource( 1 )
+
+[node name="StaticBody" type="StaticBody" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.8758, 0 )
+
+[node name="CollisionShape" type="CollisionShape" parent="StaticBody"]
+shape = SubResource( 2 )
+
+[node name="MeshInstance" type="MeshInstance" parent="StaticBody"]
+transform = Transform( 26.4428, 0, 0, 0, 1, 0, 0, 0, 22.1195, 0, 0, 0 )
+mesh = SubResource( 3 )
+material/0 = null
+
+[node name="StaticBody2" type="StaticBody" parent="."]
+transform = Transform( 1, 0, 0, 0, -0.240754, -0.970586, 0, 0.970586, -0.240754, 0, 10.1746, -18.7873 )
+
+[node name="CollisionShape" type="CollisionShape" parent="StaticBody2"]
+shape = SubResource( 2 )
+
+[node name="MeshInstance" type="MeshInstance" parent="StaticBody2"]
+transform = Transform( 26.4428, 0, 0, 0, 1, 0, 0, 0, 22.1195, 0, 0, 0 )
+mesh = SubResource( 3 )
+material/0 = null
+
+[node name="OmniLight" type="OmniLight" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.1262, 0 )
+light_color = Color( 0.196078, 1, 0, 1 )
+omni_range = 23.8561
+
+[node name="Camera" type="Camera" parent="."]
+transform = Transform( 0.985738, -0.113411, 0.124329, 0, 0.738802, 0.673922, -0.168285, -0.664311, 0.728266, 4.74679, 25.8042, 30.4906 )
+
+[node name="spawns" type="Node" parent="."]
+
+[node name="spawn1" type="Spatial" parent="spawns"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.404801, 6.86455, 4.42612 )
+
+[node name="transitions" type="Node" parent="."]
+
+[node name="to_plain" type="Area" parent="transitions"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 23.7445, 0, 0 )
+input_ray_pickable = false
+script = ExtResource( 1 )
+target_room = "plain"
+target_point = "/root/room/transitions/from_forest"
+
+[node name="shape" type="CollisionShape" parent="transitions/to_plain"]
+shape = SubResource( 4 )
+
+[node name="from_plain" type="Spatial" parent="transitions"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 14.6624, 2.5842, 0 )
