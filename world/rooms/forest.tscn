@@ -1,6 +1,4 @@
-[gd_scene load_steps=6 format=2]
-
-[ext_resource path="res://world/Transition.gd" type="Script" id=1]
+[gd_scene load_steps=4 format=2]
 
 [sub_resource type="Environment" id=1]
 
@@ -8,9 +6,6 @@
 extents = Vector3( 25.6402, 1, 21.5588 )
 
 [sub_resource type="CubeMesh" id=3]
-
-[sub_resource type="SphereShape" id=4]
-radius = 5.08697
 
 [node name="room" type="WorldEnvironment"]
 environment = SubResource( 1 )
@@ -49,18 +44,3 @@ transform = Transform( 0.985738, -0.113411, 0.124329, 0, 0.738802, 0.673922, -0.
 
 [node name="spawn1" type="Spatial" parent="spawns"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.404801, 6.86455, 4.42612 )
-
-[node name="transitions" type="Node" parent="."]
-
-[node name="to_plain" type="Area" parent="transitions"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 23.7445, 0, 0 )
-input_ray_pickable = false
-script = ExtResource( 1 )
-target_room = "plain"
-target_point = "/root/room/transitions/from_forest"
-
-[node name="shape" type="CollisionShape" parent="transitions/to_plain"]
-shape = SubResource( 4 )
-
-[node name="from_plain" type="Spatial" parent="transitions"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 14.6624, 2.5842, 0 )

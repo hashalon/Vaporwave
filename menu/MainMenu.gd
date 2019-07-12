@@ -7,7 +7,7 @@ func _ready():
 
 func _on_host()->void:
 	lobby.own_name = $buttons/name_field.text
-	lobby.host_game()
+	lobby.host_game("plain")
 	
 
 func _on_join()->void:

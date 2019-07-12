@@ -38,12 +38,29 @@ func _on_player_connected(id:int)->void:
 	# ask the new client to spawn it
 	if global.has_node(str(own_id)):
 		var player:Player = global.get_node(str(own_id))
-		global.rpc_id(id, "spawn", own_id, player.room, player.model, "")
+		global.rpc_id(id, "spawn", own_id, player.model, player.global_transform.origin)
+	
+	# server should also notify player of the room to load
+	if get_tree().is_network_server():
+		rpc_id(id, "load_room", global.current_room)
 
 
 # rpc call of peers on newly connected client
 remote func set_player_name(id:int, player_name:String)->void:
 	self.player_names[id] = player_name
+
+# rpc call of server on nwely connected client
+remote func load_room(room:String)->bool:
+	# try to load room
+	if global.rooms.has(room):
+		get_tree().change_scene_to(global.rooms[room])
+		global.current_room = room
+		
+		# add the game menu to the tree
+		get_tree().root.add_child(global.game_menu.instance())
+		return true
+	else: return false
+	
 
 # called on peer when the client disconnected
 func _on_player_disconnected(id:int)->void:
@@ -58,7 +75,7 @@ func _on_player_disconnected(id:int)->void:
 ### CONTROLS ###
 
 # create a game
-func host_game()->int:
+func host_game(room:String)->int:
 	var tree:SceneTree=get_tree()
 	if tree.has_network_peer(): return ERR_ALREADY_EXISTS
 	
@@ -70,7 +87,12 @@ func host_game()->int:
 	if res == OK:
 		tree.network_peer = host
 		self.player_names[1] = self.own_name
-		tree.change_scene_to(global.game_menu)
+		
+		# if we failed to load the map
+		if not load_room(room):
+			print("Room '" + room + "' does not exists, fail to start server.")
+			leave_game()
+			return ERR_DOES_NOT_EXIST
 	
 	return res
 
@@ -88,7 +110,6 @@ func join_game(ip:String)->int:
 	if res == OK:
 		tree.network_peer = host
 		self.player_names[tree.get_network_unique_id()] = self.own_name
-		tree.change_scene_to(global.game_menu)
 	
 	return res
 

@@ -25,9 +25,8 @@ func _ready()->void:
 		var net_timer:Timer = $network_timer
 		var err:int = net_timer.connect("timeout", self, "_send_unreliable")
 		net_timer.start()
-	else: # player is puppet (assume it is in an other room)
+	else: # player is puppet
 		set_process_unhandled_input(false)
-		set_active(false)
 
 
 # control the player character
@@ -37,13 +36,6 @@ func _process(delta:float)->void:
 			rpc("receive_reliable_inputs", _reliable_inputs)
 			_reliable_inputs  = 0x0
 			_to_send_reliable = false
-		
-		# require to place the player at the specified location in the scene
-		if self.point != "":
-			var pt:Spatial = get_node(self.point)
-			if pt != null:
-				self.global_transform.origin = pt.global_transform.origin
-				self.point = ""
 	
 	else: # puppet
 		# if the object is too far, pop it to its target position
@@ -135,10 +127,6 @@ puppet func receive_unreliable(i:int, pos:Vector3, vel_h:Vector3, vel_v:float)->
 	_target_position     = pos
 	_velocity_horizontal = vel_h
 	_velocity_vertical   = vel_v
-	
-	# if the player is not visible, move it directly to its target location
-	if self.room != global.current_room:
-		self.global_transform.origin = pos
 
 puppet func receive_reliable_inputs(i:int)->void:
 	if i&0x01!=0:
@@ -146,25 +134,6 @@ puppet func receive_reliable_inputs(i:int)->void:
 		_jump_timer.start()
 	if i&0x02!=0:
 		emit_signal("action")
-
-
-### ROOMS ###
-
-var room :String="" # room in which the player is located
-var point:String="" # point where to place our own player when changing rooms
-
-# allow a puppet player to change of room
-puppet func change_room(rm:String)->void:
-	self.room = rm
-	set_active(self.room == global.current_room)
-
-# allow to enable or disable the player (when changing room)
-# (doesn't work for our own player)
-func set_active(active:bool)->void:
-	if is_network_master(): return
-	self.visible = active
-	set_process(active)
-	# TODO: change body layer/mask
 
 
 ### INPUTS ###

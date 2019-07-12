@@ -13,14 +13,13 @@ func _ready():
 func _on_spawn()->void:
 	var tree:SceneTree = get_tree()
 	
-	# get room and model to use
-	var room :String = "plain"
+	# model to use
 	var model:String = "bear"
-	var point:String = "/root/room/spawns/spawn1"
+	var point:Vector3 = Vector3.ZERO
 	
 	var id:int = tree.get_network_unique_id()
-	global.rpc("spawn", id, room, model, point)
-	global.load_room(room)
+	global.rpc("spawn", id, model, point)
+	self.visible = false
 	
 
 
