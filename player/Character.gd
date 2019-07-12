@@ -1,13 +1,16 @@
 extends KinematicBody
-class_name Player
+class_name Character
+
+# turn this game into a 3D multiplayer metal slug deathmatch ???
 
 signal jump
 signal action
 
 # parameters of players
+export(String) var character_name:String = ""
 export(int  , 1  , 10) var health         :int  = 3  #(pt)
 export(float, 0.1, 50) var speed_walk     :float=10  #(m/s)
-export(float, 0.1, 50) var speed_run      :float=20  #(m/s)
+export(float, 0.1, 50) var speed_run      :float=20  #(m/s) # TODO: remove running ???
 export(float, 0.1, 50) var jump_force     :float=20  #(m/s2)
 export(float, 0.1,100) var gravity_force  :float=60  #(m/s2)
 export(float, 0.1,100) var gravity_jump   :float=30  #(m/s2)
@@ -113,17 +116,17 @@ func get_ground_normal()->Plane:
 
 ### NETWORKING ###
 
-var model:String="" # model for this player to load on peers
 onready var _target_position:Vector3=self.global_transform.origin
 
 # send player data in a single rpc call
 func _send_unreliable()->void:
-	rpc_unreliable("receive_unreliable", _get_unreliable_inputs(), 
+	rpc_unreliable("receive_unreliable", _get_unreliable_inputs(), _move, 
 		self.global_transform.origin, _velocity_horizontal, _velocity_vertical)
 
 # receive player data
-puppet func receive_unreliable(i:int, pos:Vector3, vel_h:Vector3, vel_v:float)->void:
+puppet func receive_unreliable(i:int, joy:Vector2, pos:Vector3, vel_h:Vector3, vel_v:float)->void:
 	_set_unreliable_inputs(i)
+	_move = joy
 	_target_position     = pos
 	_velocity_horizontal = vel_h
 	_velocity_vertical   = vel_v
@@ -139,10 +142,14 @@ puppet func receive_reliable_inputs(i:int)->void:
 ### INPUTS ###
 
 # store state of keys
+var _move:Vector2=Vector2.ZERO
+var _aim :Vector2=Vector2.ZERO
 var _move_up    :bool=false
 var _move_down  :bool=false
 var _move_left  :bool=false
 var _move_right :bool=false
+var _aim_up     :bool=false
+var _aim_down   :bool=false
 var _hold_jump  :bool=false
 var _hold_action:bool=false
 onready var _jump_timer:Timer=$jump_timer
@@ -155,11 +162,22 @@ var _to_send_reliable:bool=false
 
 # handle key presses
 func _unhandled_input(e:InputEvent)->void:
-	if e.is_pressed() and not e.is_echo(): # start pressing action
+	# handle joystick inputs differently to avoid bugs (what a mess...)
+	if e is InputEventJoypadMotion: # using this method, the player register inputs even when unfocused...
+		var v:float = e.axis_value if e.is_pressed() else 0
+		match e.axis:
+			JOY_ANALOG_LX: _move.x = v
+			JOY_ANALOG_LY: _move.y = v
+			JOY_ANALOG_RX: _aim.x  = v
+			JOY_ANALOG_RY: _aim.y  = v
+	
+	elif e.is_pressed() and not e.is_echo(): # start pressing action
 		if   e.is_action("move_up"   ): _move_up   =true
 		elif e.is_action("move_down" ): _move_down =true
 		elif e.is_action("move_left" ): _move_left =true
 		elif e.is_action("move_right"): _move_right=true
+		elif e.is_action("aim_up"    ): _aim_up    =true
+		elif e.is_action("aim_down"  ): _aim_down  =true
 		elif e.is_action("jump"):
 			_reliable_inputs |= 0x1; _hold_jump = true
 			_to_send_reliable = true; emit_signal("jump")
@@ -172,18 +190,44 @@ func _unhandled_input(e:InputEvent)->void:
 		elif e.is_action("move_down" ): _move_down  =false
 		elif e.is_action("move_left" ): _move_left  =false
 		elif e.is_action("move_right"): _move_right =false
+		elif e.is_action("aim_up"    ): _aim_up     =false
+		elif e.is_action("aim_down"  ): _aim_down   =false
 		elif e.is_action("jump"      ): _hold_jump  =false
 		elif e.is_action("action"    ): _hold_action=false
 
 # get how the character wants to move
 func get_move(ground:Plane)->Vector3:
 	var move:Vector3=Vector3.ZERO
-	if _move_up   : move.z-=1
-	if _move_down : move.z+=1
-	if _move_left : move.x-=1
-	if _move_right: move.x+=1
+	if _move != Vector2.ZERO: # move with Left Joystick
+		move.x = _move.x
+		move.z = _move.y
+	else: # move with keyboard/dpad/buttons...
+		if _move_up   : move.z-=1
+		if _move_down : move.z+=1
+		if _move_left : move.x-=1
+		if _move_right: move.x+=1
 	if move == Vector3.ZERO: return Vector3.ZERO
 	else: return ground.project(move).normalized()
+
+# get in which direction the character wants to aim
+func get_aim()->Vector3:
+	var aim:Vector3=Vector3.ZERO
+	if _aim != Vector2.ZERO: # aim with Right Joystick
+		aim.x = _aim.x
+		aim.z = _aim.y
+	elif _move != Vector2.ZERO: # aim with Left Joystick
+		aim.x = _move.x
+		aim.z = _move.y
+	else: # aim with keyboard/dpad/buttons
+		if _move_up   : aim.z-=1
+		if _move_down : aim.z+=1
+		if _move_left : aim.x-=1
+		if _move_right: aim.x+=1
+	# aim up and down
+	if _aim_up  : aim.y+=1
+	if _aim_down: aim.y-=1
+	if aim == Vector3.ZERO: return Vector3.ZERO
+	return aim.normalized()
 
 # package inputs to be sent over the network
 func _get_unreliable_inputs()->int:
@@ -208,7 +252,7 @@ func _set_unreliable_inputs(i:int)->void:
 
 ### OBJECT ###
 
-func get_class()->String: return "Player"
+func get_class()->String: return "Character"
 func is_class(name:String)->bool:
-	if name == "Player": return true
+	if name == "Character": return true
 	else: return .is_class(name)
