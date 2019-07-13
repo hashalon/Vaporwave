@@ -23,6 +23,7 @@ export(float, 1  ,100) var pop_threshold  :float=10  #(m)
 
 # called each time the player enter the scene tree
 func _ready()->void:
+	add_to_group("entities")
 	# local instance controls the player
 	if is_network_master():
 		var net_timer:Timer = $network_timer

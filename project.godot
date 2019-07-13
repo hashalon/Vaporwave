@@ -18,10 +18,16 @@ _global_script_classes=[ {
 "class": "Lobby",
 "language": "GDScript",
 "path": "res://lobby/Lobby.gd"
+}, {
+"base": "RayCast",
+"class": "Projectile",
+"language": "GDScript",
+"path": "res://projectiles/Projectile.gd"
 } ]
 _global_script_class_icons={
 "Character": "",
-"Lobby": ""
+"Lobby": "",
+"Projectile": ""
 }
 
 [application]
